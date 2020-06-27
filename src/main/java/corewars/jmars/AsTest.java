@@ -31,8 +31,6 @@
 package corewars.jmars;
 
 import java.io.*;
-import java.awt.Color;
-
 import corewars.jmars.assembler.*;
 
 public class AsTest {

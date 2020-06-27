@@ -28,12 +28,16 @@ package corewars.jmars.frontend;
 
 import java.awt.*;
 
+import corewars.jmars.jMarsPanel;
+
 /**
  * A pMARS style core display
  */
 public class CoreDisplay extends Canvas implements StepListener, CycleListener {
 
-    /* core background color */
+	private static final long serialVersionUID = 4072507170420655274L;
+
+	/* core background color */
     protected Color background;
 
     /* size of core */
@@ -56,7 +60,7 @@ public class CoreDisplay extends Canvas implements StepListener, CycleListener {
      * @param int coreS - Size of core to be displayed.
      * @param int w - desired width of display.
      */
-    public CoreDisplay(FrontEndManager man, Container con, int coreS, int w) {
+    public CoreDisplay(jMarsPanel panel, int coreS, int w) {
         coreSize = coreS;
         width = w;
         height = (coreSize / width) + 1;
@@ -69,9 +73,9 @@ public class CoreDisplay extends Canvas implements StepListener, CycleListener {
 
         background = Color.black;
 
-        man.registerStepListener(this);
-        man.registerCycleListener(this);
-        con.add(this);
+        panel.registerStepListener(this);
+        panel.registerCycleListener(this);
+        panel.add(this);
         buffer = getGraphics();
     }
 

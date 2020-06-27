@@ -29,10 +29,8 @@
  */
 package corewars.jmars;
 
-import corewars.jmars.assembler.Assembler;
 
 import java.awt.Color;
-import java.io.Reader;
 
 public class WarriorObj {
 

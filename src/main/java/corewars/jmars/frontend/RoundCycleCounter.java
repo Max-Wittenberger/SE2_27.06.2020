@@ -28,13 +28,15 @@ package corewars.jmars.frontend;
 
 import java.awt.*;
 
+import corewars.jmars.jMarsPanel;
+
 /**
  * A label displaying the current round and cycle.
  */
 public class RoundCycleCounter extends Label implements CycleListener, RoundListener {
 
-    protected int cycle, round;
-    private boolean changed;
+	private static final long serialVersionUID = -867900631563586406L;
+	protected int cycle, round;
 
     /**
      * Creates a new Round/Cycle counter and places it in a container.
@@ -43,17 +45,16 @@ public class RoundCycleCounter extends Label implements CycleListener, RoundList
      * round and cycle listener, with.
      * @param java.awt.Container con - container to place in.
      */
-    public RoundCycleCounter(FrontEndManager man, Container con) {
+    public RoundCycleCounter(jMarsPanel panel) {
         super("Round #0000, Cycle #000000", Label.CENTER);
 
-        man.registerCycleListener(this);
-        man.registerRoundListener(this);
+        panel.registerCycleListener(this);
+        panel.registerRoundListener(this);
 
-        con.add(this);
+        panel.add(this);
 
         cycle = 1;
         round = 1;
-        changed = true;
 
         return;
     }

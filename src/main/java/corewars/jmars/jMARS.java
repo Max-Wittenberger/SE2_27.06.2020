@@ -27,9 +27,9 @@
 package corewars.jmars;
 
 import java.awt.*;
-import java.awt.event.*;
 import java.util.*;
 import java.io.*;
+import java.util.List;
 
 import corewars.jmars.marsVM.*;
 import corewars.jmars.frontend.*;
@@ -39,7 +39,7 @@ import corewars.jmars.assembler.*;
  * jMARS is a corewars interpreter in which programs (warriors) battle in the
  * memory of a virtual machine (the MARS) and try to disable the other program.
  */
-public class jMARS extends Panel implements Runnable, WindowListener, FrontEndManager {
+public class jMARS implements Runnable {
 
 	// constants
 	private static final int numDefinedColors = 4;
@@ -47,8 +47,8 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
 			{ Color.cyan, Color.blue }, { Color.gray, Color.darkGray } };
 
 	// Application specific variables
-	private static Frame myFrame;
-	private static jMARS myApp;
+	private Frame myFrame;
+	private jMarsPanel panel;
 
 	// Common variables
 	private boolean useGui = false;
@@ -64,32 +64,26 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
 
 	private WarriorObj allWarriors[];
 	private WarriorObj warriors[];
-	private CoreDisplay coreDisplay;
-	private RoundCycleCounter roundCycleCounter;
 	private VM MARS;
 
 	private int runWarriors;
 
 	private static Thread myThread;
-	private static boolean exitFlag;
 
-	private Vector stepListeners;
-	private Vector cycleListeners;
-	private Vector roundListeners;
-
-	// New variables
-
-	public jMARS(boolean gui, String[] warriors) {
+	public jMARS(boolean gui, List<String> warriors) {
 		this(gui, 0, 0, 0, 0, 0, 0, 0, warriors);
 	}
 
 	public jMARS(boolean gui, int rounds, int coreSize, int cycles, int maxProc, int maxWarriorLength,
-			int minWarriorDistance, int pSpaceSize, String[] warriors) {
-		stepListeners = new Vector();
-		cycleListeners = new Vector();
-		roundListeners = new Vector();
-
+			int minWarriorDistance, int pSpaceSize, List<String> warriors) {
 		useGui = gui;
+
+		if (warriors == null || warriors.size() == 0) {
+			System.out.println("ERROR: no warrior files specified");
+		}
+
+		numWarriors = warriors.size();
+
 		if (rounds != 0) {
 			this.rounds = rounds;
 		}
@@ -113,7 +107,6 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
 		} else {
 			this.pSpaceSize = this.coreSize / 16;
 		}
-		numWarriors = warriors.length;
 
 		applicationInit(warriors);
 	}
@@ -123,24 +116,24 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
 	 * 
 	 * @param warriors2
 	 */
-	void applicationInit(String[] warriorsP) {
-		if (numWarriors == 0) {
-			System.out.println("ERROR: no warrior files specified");
-		}
+	void applicationInit(List<String> warriorsP) {
 
 		createWarriors(warriorsP);
 		if (useGui) {
 			myFrame = new Frame("jMARS");
-	        myFrame.setSize(new Dimension(1200, 900));
-	        myFrame.add(this);
-	        myFrame.addWindowListener(myApp);
-	        myFrame.show();
-			coreDisplay = new CoreDisplay(this, this, coreSize, 100);
+			myFrame.setSize(new Dimension(1200, 900));
+
+			panel = new jMarsPanel();
+			myFrame.add(panel);
+			myFrame.addWindowListener(panel);
+			myFrame.setVisible(true);
+
+			panel.addCoreDisplay(coreSize);
+			panel.addRoundCycleCounter();
 		}
-		roundCycleCounter = new RoundCycleCounter(this, this);
 	}
 
-	private void createWarriors(String[] warriorsP) {
+	private void createWarriors(List<String> warriorsP) {
 		Assembler parser = new corewars.jmars.assembler.icws94p.ICWS94p();
 		parser.addConstant("coresize", Integer.toString(coreSize));
 		parser.addConstant("maxprocesses", Integer.toString(maxProc));
@@ -152,13 +145,13 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
 		parser.addConstant("warriors", Integer.toString(numWarriors));
 		allWarriors = new WarriorObj[numWarriors];
 
-		for (int i = 0; i < numWarriors; i++) {
+		for (int i = 0; i < warriorsP.size(); i++) {
 			try {
-				FileInputStream wFile = new FileInputStream(new File(warriorsP[i]));
+				FileInputStream wFile = new FileInputStream(new File(warriorsP.get(i)));
 				try {
 					parser.parseWarrior(wFile);
 					if (parser.length() > maxWarriorLength) {
-						System.out.println("Error: warrior " + warriorsP[i] + " to large");
+						System.out.println("Error: warrior " + warriorsP.get(i) + " to large");
 						System.exit(0);
 					}
 					allWarriors[i] = new WarriorObj(parser.getWarrior(), parser.getStart(),
@@ -169,24 +162,26 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
 					allWarriors[i].initPSpace(pSpaceSize);
 					allWarriors[i].setPCell(0, -1);
 				} catch (AssemblerException ae) {
-					System.out.println("Error parsing warrior file " + warriorsP[i]);
+					System.out.println("Error parsing warrior file " + warriorsP.get(i));
 					System.out.println(ae.toString());
 					System.exit(0);
 				} catch (IOException ioe) {
-					System.out.println("IO error while parsing warrior file " + warriorsP[i]);
+					System.out.println("IO error while parsing warrior file " + warriorsP.get(i));
 					System.exit(0);
 				}
 			} catch (FileNotFoundException e) {
-				System.out.println("Could not find warrior file " + warriorsP[i]);
+				System.out.println("Could not find warrior file " + warriorsP.get(i));
 				System.exit(0);
 			}
 		}
 	}
-	
+
 	public void runApp() {
-		validate();
-		repaint();
-		update(getGraphics());
+		if (useGui) {
+			panel.validate();
+			panel.repaint();
+			panel.update(panel.getGraphics());
+		}
 		MARS = new MarsVM(coreSize, maxProc);
 		loadWarriors();
 		minWarriors = (numWarriors == 1) ? 0 : 1;
@@ -211,12 +206,16 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
 		tStartTime = new Date();
 		startTime = new Date();
 		if (useGui) {
-			coreDisplay.clear();
+			panel.getCoreDisplay().clear();
 		}
 		for (int roundNum = 0; roundNum < rounds; roundNum++) {
 			int cycleNum = 0;
+			if (useGui) {
+				panel.getCoreDisplay().clear();
+			}
 			for (; cycleNum < cycles; cycleNum++) {
 				for (int warRun = 0; warRun < runWarriors; warRun++) {
+
 					StepReport stats = MARS.step();
 					stats.warrior.numProc = stats.numProc;
 					if (stats.wDeath) {
@@ -231,10 +230,14 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
 						warriors = tmp.toArray(new WarriorObj[] {});
 						break;
 					}
-					notifyStepListeners(stats);
+					if (useGui) {
+						panel.notifyStepListeners(stats);
+					}
 				}
-				notifyCycleListeners(cycleNum);
-				repaint();
+				if (useGui) {
+					panel.notifyCycleListeners(cycleNum);
+					panel.repaint();
+				}
 				if (runWarriors <= minWarriors) {
 					break;
 				}
@@ -245,21 +248,18 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
 				count++;
 				statistic.put(name, count);
 			}
-			notifyRoundListeners(roundNum);
+			if (useGui) {
+				panel.notifyRoundListeners(roundNum);
+			}
 			endTime = new Date();
 			roundTime = ((double) endTime.getTime() - (double) startTime.getTime()) / 1000;
 			System.out.println(roundNum + 1 + ". Round time=" + roundTime + " Cycles=" + cycleNum + " avg. time/cycle="
 					+ (roundTime / cycleNum));
 			startTime = new Date();
 			totalCycles += cycleNum;
-			if (exitFlag) {
-				break;
-			}
 			MARS.reset();
 			loadWarriors();
-			if (useGui) {
-				coreDisplay.clear();
-			}
+
 		}
 		tEndTime = new Date();
 		totalTime = ((double) tEndTime.getTime() - (double) tStartTime.getTime()) / 1000;
@@ -305,114 +305,5 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
 				System.out.println("ERROR: could not load warrior " + (i + 1) + ".");
 			}
 		}
-	}
-
-	/**
-	 * update the display
-	 *
-	 * @param java.awt.Graphics g - Graphics context
-	 */
-	public void update(Graphics g) {
-		paintComponents(g);
-		return;
-	}
-
-	/**
-	 * register an object to receive step results.
-	 *
-	 * @param StepListener - object to register
-	 */
-	public void registerStepListener(StepListener l) {
-		stepListeners.addElement(l);
-	}
-
-	/**
-	 * register an object to receive cycle results.
-	 *
-	 * @param CycleListener - object to register
-	 */
-	public void registerCycleListener(CycleListener c) {
-		cycleListeners.addElement(c);
-	}
-
-	/**
-	 * register an object to receive round results.
-	 *
-	 * @param RoundListener - object to register
-	 */
-	public void registerRoundListener(RoundListener r) {
-		roundListeners.addElement(r);
-	}
-
-	protected void notifyStepListeners(StepReport step) {
-		for (Enumeration e = stepListeners.elements(); e.hasMoreElements();) {
-			StepListener j = (StepListener) e.nextElement();
-			j.stepProcess(step);
-		}
-	}
-
-	protected void notifyCycleListeners(int cycle) {
-		for (Enumeration e = cycleListeners.elements(); e.hasMoreElements();) {
-			CycleListener j = (CycleListener) e.nextElement();
-			j.cycleFinished(cycle);
-		}
-	}
-
-	protected void notifyRoundListeners(int round) {
-		for (Enumeration e = roundListeners.elements(); e.hasMoreElements();) {
-			RoundListener j = (RoundListener) e.nextElement();
-			j.roundResults(round);
-		}
-	}
-
-	/**
-	 * Invoked when a window is in the process of being closed. The close operation
-	 * can be overridden at this point.
-	 */
-	public void windowClosing(WindowEvent e) {
-		exitFlag = true;
-		System.exit(0);
-	}
-
-	/**
-	 * Invoked when a window has been opened.
-	 */
-	public void windowOpened(WindowEvent e) {
-
-	}
-
-	/**
-	 * Invoked when a window has been closed.
-	 */
-	public void windowClosed(WindowEvent e) {
-
-	}
-
-	/**
-	 * Invoked when a window is iconified.
-	 */
-	public void windowIconified(WindowEvent e) {
-
-	}
-
-	/**
-	 * Invoked when a window is de-iconified.
-	 */
-	public void windowDeiconified(WindowEvent e) {
-
-	}
-
-	/**
-	 * Invoked when a window is activated.
-	 */
-	public void windowActivated(WindowEvent e) {
-
-	}
-
-	/**
-	 * Invoked when a window is de-activated.
-	 */
-	public void windowDeactivated(WindowEvent e) {
-
 	}
 }

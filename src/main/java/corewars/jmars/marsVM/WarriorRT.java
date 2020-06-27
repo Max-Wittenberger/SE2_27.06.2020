@@ -33,8 +33,6 @@ package corewars.jmars.marsVM;
 
 import corewars.jmars.WarriorObj;
 
-import java.util.Vector;
-
 public class WarriorRT {
 
     protected WarriorObj warrior;

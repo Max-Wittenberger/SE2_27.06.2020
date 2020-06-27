@@ -27,11 +27,8 @@
 package corewars.jmars.assembler.icws94p;
 
 import java.io.BufferedReader;
-import java.io.Reader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.StreamTokenizer;
-import java.io.StringReader;
 import java.io.IOException;
 
 import java.util.List;
