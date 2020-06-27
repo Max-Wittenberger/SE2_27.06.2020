@@ -30,6 +30,7 @@ package corewars.jmars;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
+import java.net.URL;
 import java.io.*;
 
 import corewars.jmars.marsVM.*;
@@ -55,7 +56,7 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
     static jMARS myApp;
 
     // Common variables
-    static boolean useGui = false;
+    boolean useGui = false;
     int maxProc;
     int pSpaceSize;
     int coreSize;
@@ -98,19 +99,16 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
             System.out.println("usage: jMARS [options] warrior1.red [warrior2.red ...]");
             return;
         }
+        myFrame = new Frame("jMARS");
+        myFrame.setSize(new Dimension(1200, 900));
         myApp = new jMARS();
         myApp.args = args;
+        myFrame.add(myApp);
+        myFrame.addWindowListener(myApp);
+        myFrame.show();
         myApp.applicationInit();
-        if (useGui)
-        {
-            myFrame = new Frame("jMARS");
-            myFrame.setSize(new Dimension(1200, 900));
-            myFrame.add(myApp);
-            myFrame.addWindowListener(myApp);
-            myFrame.show();
-        }
     }
-    
+
     /**
      * Initialization function for the application.
      */
@@ -200,7 +198,9 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
             }
         }
         if (useGui)
+        {
             coreDisplay = new CoreDisplay(this, this, coreSize, 100);
+        }
         roundCycleCounter = new RoundCycleCounter(this, this);
         validate();
         repaint();
@@ -229,7 +229,9 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
         tStartTime = new Date();
         startTime = new Date();
         if (useGui)
+        {
             coreDisplay.clear();
+        }
         for (int roundNum = 0; roundNum < rounds; roundNum++) {
             int cycleNum = 0;
             for (; cycleNum < cycles; cycleNum++) {
@@ -277,7 +279,9 @@ public class jMARS extends Panel implements Runnable, WindowListener, FrontEndMa
             MARS.reset();
             loadWarriors();
             if (useGui)
+            {
                 coreDisplay.clear();
+            }
         }
         tEndTime = new Date();
         totalTime = ((double) tEndTime.getTime() - (double) tStartTime.getTime()) / 1000;
