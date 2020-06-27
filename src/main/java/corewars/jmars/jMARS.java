@@ -70,16 +70,16 @@ public class jMARS implements Runnable {
 
 	private static Thread myThread;
 
-	public jMARS(boolean gui, List<String> warriors) {
+	public jMARS(boolean gui, List<String> warriors) throws jMarsException {
 		this(gui, 0, 0, 0, 0, 0, 0, 0, warriors);
 	}
 
 	public jMARS(boolean gui, int rounds, int coreSize, int cycles, int maxProc, int maxWarriorLength,
-			int minWarriorDistance, int pSpaceSize, List<String> warriors) {
+			int minWarriorDistance, int pSpaceSize, List<String> warriors) throws jMarsException {
 		useGui = gui;
 
 		if (warriors == null || warriors.size() == 0) {
-			System.out.println("ERROR: no warrior files specified");
+			throw new jMarsException("ERROR: no warrior files specified");
 		}
 
 		numWarriors = warriors.size();
@@ -115,8 +115,9 @@ public class jMARS implements Runnable {
 	 * Initialization function for the application.
 	 * 
 	 * @param warriors2
+	 * @throws jMarsException 
 	 */
-	void applicationInit(List<String> warriorsP) {
+	void applicationInit(List<String> warriorsP) throws jMarsException {
 
 		createWarriors(warriorsP);
 		if (useGui) {
@@ -133,7 +134,7 @@ public class jMARS implements Runnable {
 		}
 	}
 
-	private void createWarriors(List<String> warriorsP) {
+	private void createWarriors(List<String> warriorsP) throws jMarsException {
 		Assembler parser = new corewars.jmars.assembler.icws94p.ICWS94p();
 		parser.addConstant("coresize", Integer.toString(coreSize));
 		parser.addConstant("maxprocesses", Integer.toString(maxProc));
@@ -151,8 +152,7 @@ public class jMARS implements Runnable {
 				try {
 					parser.parseWarrior(wFile);
 					if (parser.length() > maxWarriorLength) {
-						System.out.println("Error: warrior " + warriorsP.get(i) + " to large");
-						System.exit(0);
+						throw new jMarsException("Error: warrior " + warriorsP.get(i) + " to large");
 					}
 					allWarriors[i] = new WarriorObj(parser.getWarrior(), parser.getStart(),
 							wColors[i % numDefinedColors][0], wColors[i % numDefinedColors][1]);
@@ -162,21 +162,17 @@ public class jMARS implements Runnable {
 					allWarriors[i].initPSpace(pSpaceSize);
 					allWarriors[i].setPCell(0, -1);
 				} catch (AssemblerException ae) {
-					System.out.println("Error parsing warrior file " + warriorsP.get(i));
-					System.out.println(ae.toString());
-					System.exit(0);
+					throw new jMarsException("Error parsing warrior file " + warriorsP.get(i), ae);
 				} catch (IOException ioe) {
-					System.out.println("IO error while parsing warrior file " + warriorsP.get(i));
-					System.exit(0);
+					throw new jMarsException("IO error while parsing warrior file " + warriorsP.get(i), ioe);
 				}
 			} catch (FileNotFoundException e) {
-				System.out.println("Could not find warrior file " + warriorsP.get(i));
-				System.exit(0);
+				throw new jMarsException("Could not find warrior file " + warriorsP.get(i), e);
 			}
 		}
 	}
 
-	public void runApp() {
+	public void runApp() throws jMarsException {
 		if (useGui) {
 			panel.validate();
 			panel.repaint();
@@ -188,7 +184,6 @@ public class jMARS implements Runnable {
 		myThread = new Thread(this);
 		myThread.setPriority(Thread.NORM_PRIORITY - 1);
 		myThread.start();
-		return;
 	}
 
 	/**
@@ -205,14 +200,10 @@ public class jMARS implements Runnable {
 		int totalCycles = 0;
 		tStartTime = new Date();
 		startTime = new Date();
-		if (useGui) {
-			panel.getCoreDisplay().clear();
-		}
+		clearCoreDisplay();
 		for (int roundNum = 0; roundNum < rounds; roundNum++) {
 			int cycleNum = 0;
-			if (useGui) {
-				panel.getCoreDisplay().clear();
-			}
+			clearCoreDisplay();
 			for (; cycleNum < cycles; cycleNum++) {
 				for (int warRun = 0; warRun < runWarriors; warRun++) {
 
@@ -230,14 +221,11 @@ public class jMARS implements Runnable {
 						warriors = tmp.toArray(new WarriorObj[] {});
 						break;
 					}
-					if (useGui) {
-						panel.notifyStepListeners(stats);
-					}
+					notifyStepListener(stats);
 				}
-				if (useGui) {
-					panel.notifyCycleListeners(cycleNum);
-					panel.repaint();
-				}
+				notifyCycleListeners(cycleNum);
+				repaint();
+
 				if (runWarriors <= minWarriors) {
 					break;
 				}
@@ -248,9 +236,7 @@ public class jMARS implements Runnable {
 				count++;
 				statistic.put(name, count);
 			}
-			if (useGui) {
-				panel.notifyRoundListeners(roundNum);
-			}
+			notifyRoundListener(roundNum);
 			endTime = new Date();
 			roundTime = ((double) endTime.getTime() - (double) startTime.getTime()) / 1000;
 			System.out.println(roundNum + 1 + ". Round time=" + roundTime + " Cycles=" + cycleNum + " avg. time/cycle="
@@ -258,8 +244,12 @@ public class jMARS implements Runnable {
 			startTime = new Date();
 			totalCycles += cycleNum;
 			MARS.reset();
-			loadWarriors();
-
+			try {
+				loadWarriors();
+			} catch (jMarsException e) {
+				e.printMessage();
+				break;
+			}
 		}
 		tEndTime = new Date();
 		totalTime = ((double) tEndTime.getTime() - (double) tStartTime.getTime()) / 1000;
@@ -271,17 +261,48 @@ public class jMARS implements Runnable {
 		}
 	}
 
+	private void notifyRoundListener(int roundNum) {
+		if (useGui) {
+			panel.notifyRoundListeners(roundNum);
+		}
+	}
+
+	private void repaint() {
+		if (useGui) {
+			panel.repaint();
+		}
+	}
+
+	private void notifyStepListener(StepReport stats) {
+		if (useGui) {
+			panel.notifyStepListeners(stats);
+		}
+	}
+
+	private void clearCoreDisplay() {
+		if (useGui) {
+			panel.getCoreDisplay().clear();
+		}
+	}
+
+	private void notifyCycleListeners(int cycleNum) {
+		if (useGui) {
+			panel.notifyCycleListeners(cycleNum);
+		}
+	}
+
 	/**
 	 * Load warriors into core
+	 * @throws jMarsException 
 	 */
-	void loadWarriors() {
+	void loadWarriors() throws jMarsException {
 		warriors = new WarriorObj[allWarriors.length];
 		System.arraycopy(allWarriors, 0, warriors, 0, allWarriors.length);
 		runWarriors = numWarriors;
 		int[] location = new int[warriors.length];
 
 		if (!MARS.loadWarrior(warriors[0], 0)) {
-			System.out.println("ERROR: could not load warrior 1.");
+			throw new jMarsException("ERROR: could not load warrior 1.");
 		}
 
 		for (int i = 1, r = 0; i < numWarriors; i++) {
@@ -302,7 +323,7 @@ public class jMARS implements Runnable {
 			} while (!validSpot);
 
 			if (!MARS.loadWarrior(warriors[i], r)) {
-				System.out.println("ERROR: could not load warrior " + (i + 1) + ".");
+				throw new jMarsException("ERROR: could not load warrior " + (i + 1) + ".");
 			}
 		}
 	}
