@@ -67,8 +67,8 @@ public class jMARS implements Runnable {
 	private VM MARS;
 
 	private int runWarriors;
-
-	private static Thread myThread;
+	
+	private LogWriter logWriter;
 
 	public jMARS(boolean gui, List<String> warriors) throws jMarsException {
 		this(gui, 0, 0, 0, 0, 0, 0, 0, warriors);
@@ -109,6 +109,7 @@ public class jMARS implements Runnable {
 		}
 
 		applicationInit(warriors);
+		logWriter = new LogWriter();
 	}
 
 	/**
@@ -181,7 +182,7 @@ public class jMARS implements Runnable {
 		MARS = new MarsVM(coreSize, maxProc);
 		loadWarriors();
 		minWarriors = (numWarriors == 1) ? 0 : 1;
-		myThread = new Thread(this);
+		Thread myThread = new Thread(this);
 		myThread.setPriority(Thread.NORM_PRIORITY - 1);
 		myThread.start();
 	}
@@ -239,8 +240,7 @@ public class jMARS implements Runnable {
 			notifyRoundListener(roundNum);
 			endTime = new Date();
 			roundTime = ((double) endTime.getTime() - (double) startTime.getTime()) / 1000;
-			System.out.println(roundNum + 1 + ". Round time=" + roundTime + " Cycles=" + cycleNum + " avg. time/cycle="
-					+ (roundTime / cycleNum));
+			logWriter.logRound(roundNum, roundTime, cycleNum);
 			startTime = new Date();
 			totalCycles += cycleNum;
 			MARS.reset();
@@ -253,12 +253,7 @@ public class jMARS implements Runnable {
 		}
 		tEndTime = new Date();
 		totalTime = ((double) tEndTime.getTime() - (double) tStartTime.getTime()) / 1000;
-		System.out.println("Total time=" + totalTime + " Total Cycles=" + totalCycles + " avg. time/cycle="
-				+ (totalTime / totalCycles));
-		System.out.println("Survivor in how many rounds:");
-		for (String name : statistic.keySet()) {
-			System.out.println("  " + name + ": " + statistic.get(name));
-		}
+		logWriter.logStat(totalTime, totalCycles, statistic);
 	}
 
 	private void notifyRoundListener(int roundNum) {
